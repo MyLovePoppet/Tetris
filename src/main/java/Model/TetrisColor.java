@@ -11,27 +11,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public enum TetrisColor {
-    Type_O(),
-    Type_I(),
-    Type_Z(),
-    Type_L(),
-    Type_J(),
-    Type_T();
+    Type_O(Color.RED),
+    Type_I(Color.GREEN),
+    Type_Z(Color.YELLOW),
+    Type_L(Color.BLUE),
+    Type_J(Color.ORANGE),
+    Type_T(Color.PURPLE);
 
-    public Color color;
+    final public Color color;
 
-    static {
-        String s="";
-        try {
-            s= Files.readString(Path.of(ConstantValues.class.getResource("../ConstantValues.xml").toURI()));
-        } catch (IOException | URISyntaxException e) {
-            e.printStackTrace();
-        }
-        Document document = Jsoup.parse(s);
-        Element valuesElement = document.getElementsByTag("Constant").first()
-                .getElementsByTag("colors").first();
-        for (TetrisColor color1 : TetrisColor.values()) {
-            color1.color = Color.valueOf(valuesElement.getElementsByTag(color1.name()).first().text());
-        }
+    TetrisColor(Color color) {
+        this.color = color;
     }
 }

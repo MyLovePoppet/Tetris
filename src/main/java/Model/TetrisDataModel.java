@@ -3,6 +3,7 @@ package Model;
 import java.util.Arrays;
 
 public class TetrisDataModel{
+
     private TetrisColor[][] colors;
 
     public void setColors(TetrisColor[][] colors) {
@@ -13,7 +14,10 @@ public class TetrisDataModel{
     }
 
     public TetrisDataModel(TetrisColor[][] colors) {
-        this.colors = colors;
+        this.colors = new TetrisColor[ConstantValues.main_square_horizon_num.value]
+                [ConstantValues.main_square_vertical_num.value];
+        for(int i=0;i<colors.length;i++)
+            System.arraycopy(colors[i], 0, this.colors[i], 0, colors[i].length);
     }
 
     public TetrisColor[][] getColors() {
@@ -24,10 +28,9 @@ public class TetrisDataModel{
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof TetrisDataModel)) return false;
-        System.out.println(this.hashCode()+"\t"+o.hashCode());
         TetrisColor [][]colors1=((TetrisDataModel)o).colors;
-        System.out.println(this.toString());
-        System.out.println(o.toString());
+        return Arrays.deepEquals(this.colors,colors1);
+        /*
         for(int i=0;i<colors.length;i++)
             for(int j=0;j<colors[i].length;j++){
                 if(colors[i][j]==null&&colors1[i][j]==null){
@@ -39,8 +42,8 @@ public class TetrisDataModel{
                 else
                     return false;
             }
-        System.out.println(true);
-        return true;
+
+        return true;*/
     }
 
     @Override
@@ -54,7 +57,6 @@ public class TetrisDataModel{
                     stringBuilder.append(color[j]);
                 stringBuilder.append('\t');
             }
-            stringBuilder.append('\n');
         }
         return stringBuilder.toString();
     }
