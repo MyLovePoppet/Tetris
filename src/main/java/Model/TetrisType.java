@@ -12,12 +12,15 @@ public class TetrisType {
         this.rotateTypes = new ArrayList<>(rotateTypes);
         this.rotateTimes = rotateTypes.size();
     }
-    public Vec2[] getRotateShape(int index){
+
+    public Vec2[] getRotateShape(int index) {
         return rotateTypes.get(index);
     }
-    public List<Vec2[]> getAllRotateShape(int index){
+
+    public List<Vec2[]> getAllRotateShape(int index) {
         return rotateTypes;
     }
+
     public void addRotateShape(Vec2[] values) {
         if (values.length != TETIRS_TYPE_SIZE)
             throw new IllegalArgumentException("Tetris size is not 4!");

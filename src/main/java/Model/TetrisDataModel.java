@@ -7,15 +7,15 @@ public class TetrisDataModel {
     private TetrisColorType[][] colors;
 
     public void setColors(TetrisColorType[][] colors) {
-        this.colors = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
-                [ConstantValues.main_square_vertical_num.value];
+        this.colors = new TetrisColorType[colors.length]
+                [colors[0].length];
         for (int i = 0; i < colors.length; i++)
             System.arraycopy(colors[i], 0, this.colors[i], 0, colors[i].length);
     }
 
     public TetrisDataModel(TetrisColorType[][] colors) {
-        this.colors = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
-                [ConstantValues.main_square_vertical_num.value];
+        this.colors = new TetrisColorType[colors.length]
+                [colors[0].length];
         for (int i = 0; i < colors.length; i++)
             System.arraycopy(colors[i], 0, this.colors[i], 0, colors[i].length);
     }

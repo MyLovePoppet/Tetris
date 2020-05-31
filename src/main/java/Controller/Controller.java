@@ -11,15 +11,11 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
 import java.net.URL;
-import java.util.List;
-import java.util.Random;
-import java.util.ResourceBundle;
+import java.util.*;
 
 
 public class Controller implements Initializable {
@@ -41,41 +37,44 @@ public class Controller implements Initializable {
     @FXML
     Scene scene;
 
+    TetrisColorType[][] tetrisColorTypeMatrix;
     TetrisDataModel TetrisColorTypesModel;
     SimpleObjectProperty<TetrisDataModel> tetrisDataModelProperty;
+    TetrisTypes nextType;
+    int nextRotate;
 
-    TetrisColorType[][] tetrisColorTypeMatrix;
-    Random random;
-
-
+    TetrisColorType[][] nextTetrisColorTypeMatrix;
+    TetrisDataModel nextTetrisColorTypesModel;
+    SimpleObjectProperty<TetrisDataModel> nextTetrisDataModelProperty;
+    TetrisTypes tetrisType;
     int currentRotate;
     Vec2 currentPos;
     Vec2[] currentRotateShape;
 
-    TetrisTypes tetrisType;
+
+    Timeline playTimeline;
+
+    Random random;
+
+    int score;
 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         main_frame_graphicsContext = canvas_main_frame.getGraphicsContext2D();
         next_frame_graphicsContext = canvas_next_frame.getGraphicsContext2D();
-
+        random = new Random();
+        score = 0;
         initCanvas();
-
         initTetrisFrame();
+        initTimeline();
+        initKeyEvent();
 
-        scene.setOnKeyPressed(keyEvent -> {
-            if (keyEvent.getCode() == KeyCode.SPACE) {
-                label_high_score.setText("rotate");
-                rotate();
-            }
-        });
-
+        newGame();
+        newTile();
+        playTimeline.play();
     }
 
-    public void keyPressedAction(KeyEvent keyEvent) {
-
-    }
 
     private void drawSquare(int i, int j, TetrisColorType _color, boolean isMainFrame) {
         Color color;
@@ -101,81 +100,139 @@ public class Controller implements Initializable {
         }
     }
 
-    public void drawColorMatrix() {
-        TetrisColorType[][] colors = TetrisColorTypesModel.getColors();
-        for (int i = 0; i < ConstantValues.main_square_horizon_num.value; i++) {
-            for (int j = 0; j < ConstantValues.main_square_vertical_num.value; j++) {
-                if (colors[i][j] != null)
-                    drawSquare(i, j, colors[i][j], true);
-            }
-        }
-    }
-
-    public void rotate() {
+    public synchronized void tryRotate() {
         int nextRotate = (currentRotate + 1) % tetrisType.type.getRotateTimes();
         Vec2[] nextRotateShape = tetrisType.type.getRotateShape(nextRotate);
-
-        if (rotateValidCheck()) {
-            synchronized (tetrisColorTypeMatrix) {
-                for (Vec2 tmp : currentRotateShape) {
-                    tmp = currentPos.add(tmp);
-                    tetrisColorTypeMatrix[tmp.x][tmp.y] = null;
-                }
-                for (Vec2 tmp : nextRotateShape) {
-                    tmp = currentPos.add(tmp);
-                    tetrisColorTypeMatrix[tmp.x][tmp.y] = tetrisType.color;
-                }
-                tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
-                currentRotate = nextRotate;
-                currentRotateShape = nextRotateShape;
+        Set<Vec2> currentShapes = new HashSet<>(4);
+        for (Vec2 tmp : currentRotateShape) {
+            tmp = currentPos.add(tmp);
+            currentShapes.add(tmp);
+        }
+        Set<Vec2> nextShapes = new HashSet<>(4);
+        for (Vec2 tmp : nextRotateShape) {
+            tmp = currentPos.add(tmp);
+            if (currentShapes.contains(tmp)) {
+                currentShapes.remove(tmp);
+            } else {
+                nextShapes.add(tmp);
             }
         }
 
+        for (Vec2 vec2 : nextShapes) {
+            if (vec2.x < 0 || vec2.x >= ConstantValues.main_square_horizon_num.value
+                    || vec2.y < 0 || vec2.y >= ConstantValues.main_square_vertical_num.value) {
+                return;
+            }
+            if (tetrisColorTypeMatrix[vec2.x][vec2.y] != null) {
+                return;
+            }
+        }
+        currentShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = null);
+        nextShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = tetrisType.color);
+
+        tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
+        currentRotate = nextRotate;
+        currentRotateShape = nextRotateShape;
+
     }
 
-    public void updateTile() {
+    public synchronized boolean tryMove(TetrisMoveType type) {
+        Vec2 movePos = type.vec;
 
-    }
+        Set<Vec2> currentShapes = new HashSet<>(4);
+        for (Vec2 tmp : currentRotateShape) {
+            tmp = currentPos.add(tmp);
+            currentShapes.add(tmp);
+        }
+        Vec2 nextPos = currentPos.add(movePos);
+        Set<Vec2> nextShapes = new HashSet<>(4);
+        for (Vec2 tmp : currentRotateShape) {
+            tmp = nextPos.add(tmp);
+            if (currentShapes.contains(tmp)) {
+                currentShapes.remove(tmp);
+            } else {
+                nextShapes.add(tmp);
+            }
+        }
 
-    public boolean rotateValidCheck() {
+
+        for (Vec2 tmp : nextShapes) {
+            if (tmp.x < 0 || tmp.x >= ConstantValues.main_square_horizon_num.value
+                    || tmp.y < 0 || tmp.y >= ConstantValues.main_square_vertical_num.value)
+                return false;
+            if (tetrisColorTypeMatrix[tmp.x][tmp.y] != null)
+                return false;
+        }
+        currentShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = null);
+        nextShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = tetrisType.color);
+        tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
+        currentPos = nextPos;
         return true;
     }
 
-    public boolean collisionValidCheck(int index) {
-
-        return true;
-    }
-
-    public void moveDown() {
+    public int tryClear() {
+        int clearLine = 0;
         synchronized (tetrisColorTypeMatrix) {
-            for (int i = 0; i < ConstantValues.main_square_vertical_num.value - 1; i++) {
-                if (collisionValidCheck(i)) {
-                    for (int j = 0; j < ConstantValues.main_square_horizon_num.value; j++) {
-                        tetrisColorTypeMatrix[j][i] = tetrisColorTypeMatrix[j][i + 1];
+            for (int j = 0; j < ConstantValues.main_square_vertical_num.value; j++) {
+                boolean isClear = true;
+                for (int i = 0; i < ConstantValues.main_square_horizon_num.value; i++) {
+                    if (tetrisColorTypeMatrix[i][j] == null) {
+                        isClear = false;
+                        break;
                     }
                 }
+                if (isClear) {
+                    for (int jj = j; jj < ConstantValues.main_square_vertical_num.value - 1; jj++)
+                        for (int ii = 0; ii < ConstantValues.main_square_horizon_num.value; ii++) {
+                            tetrisColorTypeMatrix[ii][jj] = tetrisColorTypeMatrix[ii][jj + 1];
+                        }
+                    for (int ii = 0; ii < ConstantValues.main_square_horizon_num.value; ii++) {
+                        tetrisColorTypeMatrix[ii][ConstantValues.main_square_vertical_num.value - 1] = null;
+                    }
+                    j--;
+                    clearLine++;
+                }
             }
-            for (int i = 0; i < ConstantValues.main_square_horizon_num.value; i++)
-                tetrisColorTypeMatrix[i][ConstantValues.main_square_vertical_num.value - 1] = null;
-            tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
         }
+        return clearLine;
+    }
+
+    public void drawNextTile() {
+        nextTetrisColorTypeMatrix = new TetrisColorType[ConstantValues.next_square_horizon_num.value]
+                [ConstantValues.next_square_vertical_num.value];
+        Vec2[] nextTetrisShape = nextType.type.getRotateShape(0);
+        for (Vec2 vec2 : nextTetrisShape) {
+            vec2 = vec2.add(TetrisMoveType.Tetris_Default_Next_Location.vec);
+            nextTetrisColorTypeMatrix[vec2.x][vec2.y] = nextType.color;
+        }
+        nextTetrisDataModelProperty.set(new TetrisDataModel(nextTetrisColorTypeMatrix));
     }
 
     public void newTile() {
-        TetrisTypes[] values = TetrisTypes.values();
-        tetrisType = values[random.nextInt(values.length)];
-        currentPos = Vec2.Tetris_Default_Pawn_Location;
-        currentRotate = 0;
+        drawNextTile();
+        currentPos = TetrisMoveType.Tetris_Default_Pawn_Location.vec;
         currentRotateShape = tetrisType.type.getRotateShape(currentRotate);
         Vec2[] rotateShape = tetrisType.type.getRotateShape(currentRotate);
-        for (Vec2 vec : rotateShape) {
-            Vec2 tmp = currentPos.add(vec);
-            tetrisColorTypeMatrix[tmp.x][tmp.y] = tetrisType.color;
+        synchronized (tetrisColorTypeMatrix) {
+            for (Vec2 vec : rotateShape) {
+                Vec2 tmp = currentPos.add(vec);
+                tetrisColorTypeMatrix[tmp.x][tmp.y] = tetrisType.color;
+            }
         }
         tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
-        Platform.runLater(() -> {
-            label_mode.setText(tetrisType.name());
-        });
+    }
+
+    public void newGame() {
+        TetrisTypes[] values = TetrisTypes.values();
+        tetrisType = values[random.nextInt(values.length)];
+        currentRotate = random.nextInt(tetrisType.type.getRotateTimes());
+
+        nextType = values[random.nextInt(values.length)];
+        nextRotate = random.nextInt(nextType.type.getRotateTimes());
+
+        tetrisColorTypeMatrix = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
+                [ConstantValues.main_square_vertical_num.value];
+        tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
     }
 
     private void drawLine() {
@@ -221,12 +278,85 @@ public class Controller implements Initializable {
                 }
             });
         });
-        random = new Random();
-        newTile();
 
-        Timeline timeline = new Timeline();
-        timeline.setCycleCount(18);
-        timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), actionEvent -> moveDown()));
-        timeline.play();
+
+        //绑定俄罗斯方块数据
+        nextTetrisColorTypeMatrix = new TetrisColorType[ConstantValues.next_square_horizon_num.value]
+                [ConstantValues.next_square_vertical_num.value];
+        nextTetrisColorTypesModel = new TetrisDataModel(nextTetrisColorTypeMatrix);
+        nextTetrisDataModelProperty = new SimpleObjectProperty<>(null, "NextTetrisColorTypesModel", nextTetrisColorTypesModel);
+
+
+        //如果俄罗斯方块数据颜色发生改变，增加重绘事件
+        nextTetrisDataModelProperty.addListener((observableValue, tetris_old, tetris_new) -> {
+            List<ChangedColorType> changedColorTypes = ChangedColorType.getChangedColorType(tetris_old, tetris_new);
+            Platform.runLater(() -> {
+                for (ChangedColorType changedColorType : changedColorTypes) {
+                    drawSquare(changedColorType.i, changedColorType.j, changedColorType.newColor, false);
+                    drawLine();
+                }
+            });
+        });
+    }
+
+    private void initTimeline() {
+        playTimeline = new Timeline();
+        playTimeline.setCycleCount(Timeline.INDEFINITE);
+        playTimeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), actionEvent -> {
+            Platform.runLater(() -> {
+                if (!tryMove(TetrisMoveType.DOWN)) {
+                    TetrisTypes[] values = TetrisTypes.values();
+                    tetrisType = nextType;
+                    currentRotate = nextRotate;
+                    nextType = values[random.nextInt(values.length)];
+                    nextRotate = random.nextInt(nextType.type.getRotateTimes());
+
+                    if (currentPos.y == TetrisMoveType.Tetris_Default_Pawn_Location.vec.y) {
+                        playTimeline.stop();
+                        label_mode.setText("GameOver");
+                        return;
+                    }
+                    int clearLine = tryClear();
+                    score += clearLine;
+                    label_score.setText("得分:" + score);
+                    newTile();
+                }
+            });
+
+        }));
+        playTimeline.play();
+    }
+
+    public void initKeyEvent() {
+        scene.setOnKeyPressed(keyEvent -> {
+            switch (keyEvent.getCode()) {
+                case W:
+                case UP:
+                case SPACE:
+                    label_high_score.setText("rotate");
+                    tryRotate();
+                    break;
+
+                case A:
+                case LEFT:
+                    tryMove(TetrisMoveType.LEFT);
+                    break;
+
+                case D:
+                case RIGHT:
+                    tryMove(TetrisMoveType.RIGHT);
+                    break;
+
+                case S:
+                case DOWN:
+                    tryMove(TetrisMoveType.DOWN);
+                    break;
+
+                case R:
+                    newGame();
+                    newTile();
+                    playTimeline.play();
+            }
+        });
     }
 }
