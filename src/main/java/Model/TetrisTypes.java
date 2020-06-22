@@ -1,5 +1,7 @@
 package Model;
-
+/**
+ * 7种不同的俄罗斯方块的数据类型的定义，由数据类型和颜色类型进行组合
+ */
 public enum TetrisTypes {
     Type_O(TetrisType.TetrisType_O(), TetrisColorType.Type_O),
     Type_I(TetrisType.TetrisType_I(), TetrisColorType.Type_I),
@@ -8,7 +10,6 @@ public enum TetrisTypes {
     Type_Z(TetrisType.TetrisType_Z(), TetrisColorType.Type_Z),
     Type_T(TetrisType.TetrisType_T(), TetrisColorType.Type_T),
     Type_S(TetrisType.TetrisType_S(), TetrisColorType.Type_S);
-
 
     final public TetrisType type;
     final public TetrisColorType color;

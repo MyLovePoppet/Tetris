@@ -3,9 +3,15 @@ package Model;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 俄罗斯方块的类型
+ */
 public class TetrisType {
+    //默认的俄罗斯方块类型的方块数目，目前都是4个，用于检测数据的有效性
     final static int TETIRS_TYPE_SIZE = 4;
+    //不同的旋转的位置的存在
     List<Vec2[]> rotateTypes;
+    //可以旋转的次数
     int rotateTimes;
 
     public TetrisType(List<Vec2[]> rotateTypes) {
@@ -17,7 +23,7 @@ public class TetrisType {
         return rotateTypes.get(index);
     }
 
-    public List<Vec2[]> getAllRotateShape(int index) {
+    public List<Vec2[]> getAllRotateShape() {
         return rotateTypes;
     }
 
@@ -35,6 +41,12 @@ public class TetrisType {
         this.rotateTimes = rotateTimes;
     }
 
+    //7种不同的俄罗斯方块的数据进行生成
+
+    /**
+     * O类型的俄罗斯方块的数据生成，O类型只有一种旋转类型
+     * @return 类型的俄罗斯
+     */
     public static TetrisType TetrisType_O() {
         List<Vec2[]> rotateShapes = new ArrayList<>(1);
         rotateShapes.add(new Vec2[]{Vec2.valueOf(-1, 0), Vec2.valueOf(-1, -1),
@@ -42,6 +54,10 @@ public class TetrisType {
         return new TetrisType(rotateShapes);
     }
 
+    /**
+     * L类型的俄罗斯方块的数据生成，L类型有三种旋转类型
+     * @return 类型的俄罗斯
+     */
     public static TetrisType TetrisType_L() {
         List<Vec2[]> rotateShapes = new ArrayList<>(4);
         rotateShapes.add(new Vec2[]{Vec2.valueOf(0, 0), Vec2.valueOf(-1, 0),

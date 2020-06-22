@@ -5,6 +5,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.JavaFXBuilderFactory;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -21,6 +22,9 @@ public class Main extends Application {
         InputStream in = Main.class.getResourceAsStream("Tetris.fxml");
         Scene scene=loader.load(in); // 对象方法的参数是InputStream，返回值是Object
         primaryStage.setScene(scene);
+        primaryStage.setTitle("舒钦瑜_2017152044");
+        Image icon=new Image(this.getClass().getResource("lol.png").toString());
+        primaryStage.getIcons().add(icon);
         primaryStage.show();
         in.close();
     }

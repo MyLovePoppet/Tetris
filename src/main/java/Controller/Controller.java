@@ -75,7 +75,13 @@ public class Controller implements Initializable {
         playTimeline.play();
     }
 
-
+    /**
+     * 在特定位置绘制一个方块
+     * @param i 第i行
+     * @param j 第j列
+     * @param _color 绘制的颜色，null代表默认的背景色，即白色
+     * @param isMainFrame 是不是在主界面内进行绘制，false为下一个方块的canvas内进行绘制
+     */
     private void drawSquare(int i, int j, TetrisColorType _color, boolean isMainFrame) {
         Color color;
         if (_color == null)
@@ -83,14 +89,19 @@ public class Controller implements Initializable {
         else
             color = _color.color;
         if (isMainFrame) {
-            if (i > 9 || j > 19)
+            //在界面之外的数据，抛出异常
+            if (i > ConstantValues.main_square_horizon_num.value - 1 ||
+                    j > ConstantValues.main_square_vertical_num.value - 1)
                 throw new IllegalArgumentException("draw square at" + i + " " + j + " error!");
             j = ConstantValues.main_square_vertical_num.value - j;
             main_frame_graphicsContext.setFill(color);
-            main_frame_graphicsContext.fillRect(i * ConstantValues.square_length.value, (j - 1) * ConstantValues.square_length.value,
-                    ConstantValues.square_length.value, ConstantValues.square_length.value);
+            //fillRect来进行填充一个矩形块，位置计算由i,j和方块的边长来进行计算
+            main_frame_graphicsContext.fillRect(i * ConstantValues.square_length.value,
+                    (j - 1) * ConstantValues.square_length.value, ConstantValues.square_length.value,
+                    ConstantValues.square_length.value);
         } else {
-            if (i > 3 || j > 3)
+            //与主界面绘制相同的逻辑
+            if (i > ConstantValues.next_square_horizon_num.value - 1 || j > ConstantValues.next_square_vertical_num.value - 1)
                 throw new IllegalArgumentException("draw square at" + i + " " + j + " error!");
             j = ConstantValues.next_square_vertical_num.value - j;
             next_frame_graphicsContext.setFill(color);
@@ -136,15 +147,22 @@ public class Controller implements Initializable {
 
     }
 
+    /**
+     * 尝试移动
+     * @param type 移动的类型
+     * @return 是否成功移动，如果为true，说明移动成功，如果为false，说明移动不成功
+     */
     public synchronized boolean tryMove(TetrisMoveType type) {
-        Vec2 movePos = type.vec;
 
+        Vec2 movePos = type.vec;
+        //当前的位置信息
         Set<Vec2> currentShapes = new HashSet<>(4);
         for (Vec2 tmp : currentRotateShape) {
             tmp = currentPos.add(tmp);
             currentShapes.add(tmp);
         }
         Vec2 nextPos = currentPos.add(movePos);
+        //需要进行检测的位置信息（新的位置信息除去当前的位置信息）
         Set<Vec2> nextShapes = new HashSet<>(4);
         for (Vec2 tmp : currentRotateShape) {
             tmp = nextPos.add(tmp);
@@ -155,7 +173,7 @@ public class Controller implements Initializable {
             }
         }
 
-
+        //检测是否可移动
         for (Vec2 tmp : nextShapes) {
             if (tmp.x < 0 || tmp.x >= ConstantValues.main_square_horizon_num.value
                     || tmp.y < 0 || tmp.y >= ConstantValues.main_square_vertical_num.value)
@@ -163,8 +181,10 @@ public class Controller implements Initializable {
             if (tetrisColorTypeMatrix[tmp.x][tmp.y] != null)
                 return false;
         }
+        //如果可移动，那么将移动过去
         currentShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = null);
         nextShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = tetrisType.color);
+        //更新数据
         tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
         currentPos = nextPos;
         return true;
@@ -223,34 +243,45 @@ public class Controller implements Initializable {
     }
 
     public void newGame() {
+
+        //获取所有的俄罗斯方块
         TetrisTypes[] values = TetrisTypes.values();
         tetrisType = values[random.nextInt(values.length)];
         currentRotate = random.nextInt(tetrisType.type.getRotateTimes());
-
+        //下一个俄罗斯方块数据
         nextType = values[random.nextInt(values.length)];
         nextRotate = random.nextInt(nextType.type.getRotateTimes());
+
 
         tetrisColorTypeMatrix = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
                 [ConstantValues.main_square_vertical_num.value];
         tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
+        label_mode.setText("");
     }
 
     private void drawLine() {
         //绘制矩形框细线
         main_frame_graphicsContext.setStroke(Color.BLACK);
         main_frame_graphicsContext.setLineWidth(2.0);
+        //主界面
+        //绘制竖线
         for (int i = 0; i <= ConstantValues.main_square_horizon_num.value; i++)
             main_frame_graphicsContext.strokeLine(i * ConstantValues.square_length.value, 0,
                     i * ConstantValues.square_length.value, canvas_main_frame.getHeight());
+        //绘制横线
         for (int i = 0; i <= ConstantValues.main_square_vertical_num.value; i++)
             main_frame_graphicsContext.strokeLine(0, i * ConstantValues.square_length.value,
                     canvas_main_frame.getWidth(), i * ConstantValues.square_length.value);
+
+        //下一个方块的界面
         next_frame_graphicsContext.setStroke(Color.BLACK);
         next_frame_graphicsContext.setLineWidth(2.0);
+        //绘制竖线
         for (int i = 0; i <= ConstantValues.next_square_horizon_num.value; i++) {
             next_frame_graphicsContext.strokeLine(i * ConstantValues.square_length.value, 0,
                     i * ConstantValues.square_length.value, canvas_next_frame.getHeight());
         }
+        //绘制横线
         for (int i = 0; i <= ConstantValues.next_square_vertical_num.value; i++)
             next_frame_graphicsContext.strokeLine(0, i * ConstantValues.square_length.value,
                     canvas_next_frame.getWidth(), i * ConstantValues.square_length.value);
@@ -259,24 +290,26 @@ public class Controller implements Initializable {
     private void initCanvas() {
         drawLine();
     }
-
     private void initTetrisFrame() {
-        //绑定俄罗斯方块数据
+
+        //俄罗斯方块数据（二维数组）
         tetrisColorTypeMatrix = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
                 [ConstantValues.main_square_vertical_num.value];
+        //棋盘数据类型
         TetrisColorTypesModel = new TetrisDataModel(tetrisColorTypeMatrix);
-        tetrisDataModelProperty = new SimpleObjectProperty<>(null, "TetrisColorTypesModel", TetrisColorTypesModel);
-
+        //创建绑定
+        tetrisDataModelProperty = new SimpleObjectProperty<>(null,
+                "TetrisColorTypesModel", TetrisColorTypesModel);
 
         //如果俄罗斯方块数据颜色发生改变，增加重绘事件
         tetrisDataModelProperty.addListener((observableValue, tetris_old, tetris_new) -> {
+            //获取所有的发生改变了的颜色数据
             List<ChangedColorType> changedColorTypes = ChangedColorType.getChangedColorType(tetris_old, tetris_new);
-            Platform.runLater(() -> {
-                for (ChangedColorType changedColorType : changedColorTypes) {
-                    drawSquare(changedColorType.i, changedColorType.j, changedColorType.newColor, true);
-                    drawLine();
-                }
-            });
+            //针对变化的数据重新绘制颜色
+            for (ChangedColorType changedColorType : changedColorTypes) {
+                drawSquare(changedColorType.i, changedColorType.j, changedColorType.newColor, true);
+                drawLine();
+            }
         });
 
 
