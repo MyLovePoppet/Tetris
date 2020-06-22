@@ -111,9 +111,15 @@ public class Controller implements Initializable {
         }
     }
 
-    public synchronized void tryRotate() {
+    /**
+     * 尝试移动
+     * @return 是否成功旋转，如果为true，说明旋转成功，如果为false，说明旋转不成功
+     */
+    public synchronized boolean tryRotate() {
+        //获取下一个旋转的数据
         int nextRotate = (currentRotate + 1) % tetrisType.type.getRotateTimes();
         Vec2[] nextRotateShape = tetrisType.type.getRotateShape(nextRotate);
+
         Set<Vec2> currentShapes = new HashSet<>(4);
         for (Vec2 tmp : currentRotateShape) {
             tmp = currentPos.add(tmp);
@@ -132,10 +138,10 @@ public class Controller implements Initializable {
         for (Vec2 vec2 : nextShapes) {
             if (vec2.x < 0 || vec2.x >= ConstantValues.main_square_horizon_num.value
                     || vec2.y < 0 || vec2.y >= ConstantValues.main_square_vertical_num.value) {
-                return;
+                return false;
             }
             if (tetrisColorTypeMatrix[vec2.x][vec2.y] != null) {
-                return;
+                return false;
             }
         }
         currentShapes.forEach(vec2 -> tetrisColorTypeMatrix[vec2.x][vec2.y] = null);
@@ -144,7 +150,7 @@ public class Controller implements Initializable {
         tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
         currentRotate = nextRotate;
         currentRotateShape = nextRotateShape;
-
+        return true;
     }
 
     /**
@@ -190,17 +196,24 @@ public class Controller implements Initializable {
         return true;
     }
 
+    /**
+     * 尝试进行消除
+     * @return 消除的行数
+     */
     public int tryClear() {
         int clearLine = 0;
+        //锁住
         synchronized (tetrisColorTypeMatrix) {
             for (int j = 0; j < ConstantValues.main_square_vertical_num.value; j++) {
                 boolean isClear = true;
                 for (int i = 0; i < ConstantValues.main_square_horizon_num.value; i++) {
+                    //如果有空的位置就消除不了
                     if (tetrisColorTypeMatrix[i][j] == null) {
                         isClear = false;
                         break;
                     }
                 }
+                //进行整体的行下移
                 if (isClear) {
                     for (int jj = j; jj < ConstantValues.main_square_vertical_num.value - 1; jj++)
                         for (int ii = 0; ii < ConstantValues.main_square_horizon_num.value; ii++) {
@@ -243,7 +256,6 @@ public class Controller implements Initializable {
     }
 
     public void newGame() {
-
         //获取所有的俄罗斯方块
         TetrisTypes[] values = TetrisTypes.values();
         tetrisType = values[random.nextInt(values.length)];
@@ -251,8 +263,7 @@ public class Controller implements Initializable {
         //下一个俄罗斯方块数据
         nextType = values[random.nextInt(values.length)];
         nextRotate = random.nextInt(nextType.type.getRotateTimes());
-
-
+        //全为null表示背景色为白色
         tetrisColorTypeMatrix = new TetrisColorType[ConstantValues.main_square_horizon_num.value]
                 [ConstantValues.main_square_vertical_num.value];
         tetrisDataModelProperty.set(new TetrisDataModel(tetrisColorTypeMatrix));
@@ -334,16 +345,21 @@ public class Controller implements Initializable {
 
     private void initTimeline() {
         playTimeline = new Timeline();
+        //设置为无线循环
         playTimeline.setCycleCount(Timeline.INDEFINITE);
+        //1s下落一次
         playTimeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), actionEvent -> {
+            //放到事件派发线程内进行执行
             Platform.runLater(() -> {
+                //不能继续下落
                 if (!tryMove(TetrisMoveType.DOWN)) {
+                    //生成下一个方块
                     TetrisTypes[] values = TetrisTypes.values();
                     tetrisType = nextType;
                     currentRotate = nextRotate;
                     nextType = values[random.nextInt(values.length)];
                     nextRotate = random.nextInt(nextType.type.getRotateTimes());
-
+                    //当前位置为起始位置，表示游戏结束
                     if (currentPos.y == TetrisMoveType.Tetris_Default_Pawn_Location.vec.y) {
                         playTimeline.stop();
                         label_mode.setText("GameOver");
@@ -361,6 +377,7 @@ public class Controller implements Initializable {
     }
 
     public void initKeyEvent() {
+        //设置键盘事件
         scene.setOnKeyPressed(keyEvent -> {
             switch (keyEvent.getCode()) {
                 case W:
